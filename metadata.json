@@ -1,0 +1,6 @@
+{
+  "name": "Tank 3D Exploded Viewer",
+  "description": "An interactive, scroll-driven 3D architectural blueprint viewer of a battle tank, showcasing its internal and external components with smooth canvas-based animations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
