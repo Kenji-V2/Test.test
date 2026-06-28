@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cube</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:#040407;
+  font-family:'Space Grotesk',system-ui,sans-serif;
+  overflow-x:hidden;
+}
+
+#scroll-space{height:500vh}
+
+#c{
+  position:fixed;
+  top:0;left:0;
+  width:100vw;height:100vh;
+  display:block;
+}
+
+#ui{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+}
+
+.pbar{
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+  background:rgba(255,255,255,0.05);
+}
+.pfill{
+  height:100%;
+  background:rgba(255,255,255,0.28);
+  width:0%;
+  transition:width 0.06s linear;
+}
+
+.scroll-hint{
+  position:absolute;
+  bottom:36px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  transition:opacity 0.6s ease;
+}
+.scroll-hint span{
+  font-size:9.5px;
+  color:rgba(255,255,255,0.22);
+  letter-spacing:0.22em;
+  text-transform:uppercase;
+}
+.scroll-arrow{
+  width:1px;
+  height:30px;
+  background:linear-gradient(to bottom,rgba(255,255,255,0.22),transparent);
+  animation:arrowPulse 2s ease-in-out infinite;
+}
+@keyframes arrowPulse{
+  0%,100%{opacity:0.25;transform:scaleY(1)}
+  50%{opacity:0.85;transform:scaleY(1.15)}
+}
+
+.drag-hint{
+  position:absolute;
+  bottom:78px;
+  left:50%;
+  transform:translateX(-50%);
+  font-size:9.5px;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.14);
+  transition:opacity 0.4s;
+  white-space:nowrap;
+}
+
+/* ── Music player ─────────────────────────────── */
+#mplayer{
+  position:absolute;
+  top:18px;left:18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:rgba(255,255,255,0.042);
+  border:1px solid rgba(255,255,255,0.072);
+  border-radius:8px;
+  padding:7px 13px 7px 10px;
+  pointer-events:all;
+  backdrop-filter:blur(16px);
+  transition:border-color .2s,background .2s;
+  cursor:default;
+}
+#mplayer:hover{
+  background:rgba(255,255,255,0.068);
+  border-color:rgba(255,255,255,0.12);
+}
+
+/* Animated bars (play indicator) */
+.mbars{
+  display:flex;
+  align-items:flex-end;
+  gap:2.5px;
+  height:14px;
+  cursor:pointer;
+  padding:0 2px;
+  flex-shrink:0;
+}
+.mbar{
+  width:2.5px;
+  border-radius:1px;
+  background:rgba(255,255,255,0.5);
+  animation:barPulse 1.1s ease-in-out infinite;
+}
+.mbar:nth-child(2){animation-delay:.18s}
+.mbar:nth-child(3){animation-delay:.36s}
+@keyframes barPulse{
+  0%,100%{height:3px}
+  50%{height:13px}
+}
+.mbars.paused .mbar{
+  animation:none;
+  height:3px;
+  background:rgba(255,255,255,0.25);
+}
+.mbars:hover .mbar{background:rgba(255,255,255,0.8)}
+
+/* Volume icon */
+.vol-icon{
+  font-size:12px;
+  color:rgba(255,255,255,0.3);
+  user-select:none;
+  flex-shrink:0;
+  letter-spacing:0;
+}
+
+/* Volume slider */
+#mvol{
+  -webkit-appearance:none;
+  appearance:none;
+  width:76px;
+  height:2px;
+  border-radius:2px;
+  background:rgba(255,255,255,0.13);
+  outline:none;
+  cursor:pointer;
+  flex-shrink:0;
+}
+#mvol::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:11px;height:11px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.7);
+  cursor:pointer;
+  transition:background .15s,transform .15s;
+}
+#mvol:hover::-webkit-slider-thumb,
+#mvol:active::-webkit-slider-thumb{
+  background:rgba(255,255,255,0.96);
+  transform:scale(1.18);
+}
+#mvol::-moz-range-thumb{
+  width:11px;height:11px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.7);
+  border:none;
+  cursor:pointer;
+}
+
+/* Faces button */
+.faces-btn{
+  position:absolute;
+  top:18px;right:18px;
+  pointer-events:all;
+  background:rgba(255,255,255,0.045);
+  border:1px solid rgba(255,255,255,0.075);
+  color:rgba(255,255,255,0.48);
+  font-family:inherit;
+  font-size:11.5px;
+  letter-spacing:0.1em;
+  padding:7px 15px;
+  border-radius:7px;
+  cursor:pointer;
+  backdrop-filter:blur(14px);
+  transition:background .2s,border-color .2s,color .2s;
+  user-select:none;
+}
+.faces-btn:hover{
+  background:rgba(255,255,255,0.09);
+  border-color:rgba(255,255,255,0.14);
+  color:rgba(255,255,255,0.78);
+}
+
+.faces-panel{
+  position:absolute;
+  top:54px;right:18px;
+  width:264px;
+  background:rgba(6,6,10,0.93);
+  border:1px solid rgba(255,255,255,0.065);
+  border-radius:11px;
+  padding:14px;
+  pointer-events:all;
+  backdrop-filter:blur(28px);
+  transform:translateY(-8px) scale(0.96);
+  opacity:0;
+  pointer-events:none;
+  transition:transform .22s ease,opacity .22s ease;
+}
+.faces-panel.open{
+  transform:translateY(0) scale(1);
+  opacity:1;
+  pointer-events:all;
+}
+.panel-label{
+  font-size:9px;
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,0.18);
+  margin-bottom:11px;
+}
+.face-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:6px;
+}
+.face-slot{
+  position:relative;
+  background:rgba(255,255,255,0.025);
+  border:1px solid rgba(255,255,255,0.055);
+  border-radius:7px;
+  padding:10px 5px 8px;
+  text-align:center;
+  cursor:pointer;
+  transition:background .15s,border-color .15s;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  min-height:68px;
+}
+.face-slot:hover{
+  background:rgba(255,255,255,0.065);
+  border-color:rgba(255,255,255,0.12);
+}
+.face-slot.has-img .fplus{display:none}
+.face-thumb{
+  width:100%;
+  aspect-ratio:1;
+  object-fit:cover;
+  border-radius:3px;
+  display:none;
+}
+.face-slot.has-img .face-thumb{display:block}
+.fplus{
+  font-size:16px;
+  color:rgba(255,255,255,0.14);
+  line-height:1;
+}
+.fname{
+  font-size:9px;
+  color:rgba(255,255,255,0.28);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+}
+.face-slot input[type=file]{
+  position:absolute;
+  inset:0;
+  opacity:0;
+  cursor:pointer;
+  font-size:0;
+}
+</style>
+</head>
+<body>
+
+<!-- Hidden YouTube player -->
+<audio id="bgm" loop preload="auto"><source src="raws.opus" type="audio/ogg"></audio>
+
+<canvas id="c"></canvas>
+<div id="scroll-space"></div>
+
+<div id="ui">
+  <div class="pbar"><div class="pfill" id="pfill"></div></div>
+
+  <!-- Music player (top-left) -->
+  <div id="mplayer" title="Click bars to play/pause">
+    <div class="mbars paused" id="mbars">
+      <div class="mbar"></div>
+      <div class="mbar"></div>
+      <div class="mbar"></div>
+    </div>
+    <span class="vol-icon">&#9834;</span>
+    <input type="range" id="mvol" min="0" max="100" value="60" step="1" title="Volume">
+  </div>
+
+  <div class="scroll-hint" id="shint">
+    <span>Scroll to animate</span>
+    <div class="scroll-arrow"></div>
+  </div>
+
+  <div class="drag-hint" id="dhint">Drag to rotate</div>
+
+  <button class="faces-btn" id="fbtn">&#8862; Faces</button>
+
+  <div class="faces-panel" id="fpanel">
+    <div class="panel-label">Upload face images</div>
+    <div class="face-grid" id="fgrid"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+
+const audio=document.getElementById('bgm');
+audio.volume=0.6;
+const bars=document.getElementById('mbars');
+document.getElementById('mvol').addEventListener('input',e=>audio.volume=e.target.value/100);
+bars.addEventListener('click',()=>{if(audio.paused){audio.play();bars.classList.remove('paused');}else{audio.pause();bars.classList.add('paused');}});
+['pointerdown','keydown','touchstart','scroll'].forEach(ev=>window.addEventListener(ev,()=>{audio.play().then(()=>bars.classList.remove('paused')).catch(()=>{});},{once:true,passive:true}));
+
+/* ── Three.js cube ────────────────────────────────────────── */
+(function(){
+
+const FACES=[
+  {label:'Front', mi:4},
+  {label:'Back',  mi:5},
+  {label:'Right', mi:0},
+  {label:'Left',  mi:1},
+  {label:'Top',   mi:2},
+  {label:'Bottom',mi:3},
+];
+
+const PALETTES=[
+  {a:'#12122a',b:'#0e0e20',line:'rgba(120,120,200,0.06)'},
+  {a:'#0c1e1e',b:'#0a1a14',line:'rgba(80,180,140,0.06)'},
+  {a:'#1e0d0d',b:'#1a1010',line:'rgba(200,80,80,0.06)'},
+  {a:'#0b1422',b:'#0c1030',line:'rgba(60,100,200,0.06)'},
+  {a:'#111118',b:'#0e0e16',line:'rgba(160,160,200,0.07)'},
+  {a:'#161610',b:'#101408',line:'rgba(160,180,80,0.06)'},
+];
+
+function makeDefault(mi){
+  const cv=document.createElement('canvas');
+  cv.width=cv.height=512;
+  const ctx=cv.getContext('2d');
+  const {a,b,line}=PALETTES[mi];
+  const g=ctx.createLinearGradient(0,0,512,512);
+  g.addColorStop(0,a);g.addColorStop(1,b);
+  ctx.fillStyle=g;ctx.fillRect(0,0,512,512);
+  ctx.strokeStyle=line;ctx.lineWidth=0.6;
+  for(let i=0;i<=512;i+=48){
+    ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,512);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(512,i);ctx.stroke();
+  }
+  ctx.strokeStyle=line.replace('0.06','0.11').replace('0.07','0.13');
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(256,180);ctx.lineTo(332,256);
+  ctx.lineTo(256,332);ctx.lineTo(180,256);
+  ctx.closePath();ctx.stroke();
+  return cv;
+}
+
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x040407,1);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(52,1,0.005,200);
+camera.position.z=4.6;
+scene.fog=new THREE.FogExp2(0x040407,0.04);
+
+const amb=new THREE.AmbientLight(0xffffff,0.28);scene.add(amb);
+const key=new THREE.DirectionalLight(0xffffff,0.9);
+key.position.set(2.5,3,5);scene.add(key);
+const fill=new THREE.DirectionalLight(0x7080ff,0.22);
+fill.position.set(-3,-1,-3);scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffeedd,0.12);
+rim.position.set(0,-4,1);scene.add(rim);
+
+const faceCanvases=Array(6);
+const faceTex=Array(6);
+const faceMat=Array(6);
+for(let i=0;i<6;i++){
+  faceCanvases[i]=makeDefault(i);
+  faceTex[i]=new THREE.CanvasTexture(faceCanvases[i]);
+  faceMat[i]=new THREE.MeshStandardMaterial({
+    map:faceTex[i],roughness:0.18,metalness:0.06
+  });
+}
+
+const SIZE=1.88;
+const geo=new THREE.BoxGeometry(SIZE,SIZE,SIZE);
+const cube=new THREE.Mesh(geo,faceMat);
+scene.add(cube);
+
+const edgeMat=new THREE.LineBasicMaterial({
+  color:0xffffff,transparent:true,opacity:0.055
+});
+cube.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),edgeMat));
+
+function resize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  camera.aspect=w/h;camera.updateProjectionMatrix();
+  renderer.setSize(w,h);
+}
+resize();
+window.addEventListener('resize',resize);
+
+const cur={rx:0,ry:0,rz:0,cz:4.6};
+const tgt={rx:0,ry:0,rz:0,cz:4.6};
+const drag={x:0,y:0,tx:0,ty:0};
+let down=false,lx=0,ly=0;
+
+const P1=0.62;
+const END_RY=Math.PI*2.85;
+const END_CZ_P1=3.82;
+const ZOOM_END=1.72;
+const P1_RX=Math.sin(Math.PI*1.1)*0.52;
+const P1_RZ=Math.sin(Math.PI*1.75)*0.2;
+
+function setTargets(p){
+  if(p<=P1){
+    const t=p/P1;
+    const e=t*t*(3-2*t);
+    tgt.ry=e*END_RY;
+    tgt.rx=Math.sin(e*Math.PI*1.1)*0.52;
+    tgt.rz=Math.sin(e*Math.PI*1.75)*0.2;
+    tgt.cz=4.6-e*0.78;
+  }else{
+    const t=(p-P1)/(1-P1);
+    const e=t*t*(3-2*t);
+    tgt.ry=END_RY+e*(Math.PI*4-END_RY);
+    tgt.rx=P1_RX*(1-e);
+    tgt.rz=P1_RZ*(1-e);
+    tgt.cz=END_CZ_P1-e*(END_CZ_P1-ZOOM_END);
+  }
+}
+
+window.addEventListener('scroll',()=>{
+  const maxS=document.body.scrollHeight-window.innerHeight;
+  const p=Math.min(window.scrollY/maxS,1);
+  document.getElementById('pfill').style.width=(p*100)+'%';
+  document.getElementById('shint').style.opacity=p<0.04?'1':'0';
+  document.getElementById('dhint').style.opacity=p>0.5?'0':'1';
+  setTargets(p);
+},{passive:true});
+
+canvas.addEventListener('mousedown',e=>{down=true;lx=e.clientX;ly=e.clientY});
+window.addEventListener('mousemove',e=>{
+  if(!down)return;
+  drag.tx+=(e.clientX-lx)*0.0065;
+  drag.ty+=(e.clientY-ly)*0.0065;
+  lx=e.clientX;ly=e.clientY;
+});
+window.addEventListener('mouseup',()=>{down=false});
+canvas.addEventListener('touchstart',e=>{
+  down=true;lx=e.touches[0].clientX;ly=e.touches[0].clientY;
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+  if(!down)return;
+  drag.tx+=(e.touches[0].clientX-lx)*0.0065;
+  drag.ty+=(e.touches[0].clientY-ly)*0.0065;
+  lx=e.touches[0].clientX;ly=e.touches[0].clientY;
+},{passive:true});
+window.addEventListener('touchend',()=>{down=false});
+
+const LF=0.055,DLF=0.1;
+function tick(){
+  requestAnimationFrame(tick);
+  cur.rx+=(tgt.rx-cur.rx)*LF;
+  cur.ry+=(tgt.ry-cur.ry)*LF;
+  cur.rz+=(tgt.rz-cur.rz)*LF;
+  cur.cz+=(tgt.cz-cur.cz)*LF;
+  drag.x+=(drag.tx-drag.x)*DLF;
+  drag.y+=(drag.ty-drag.y)*DLF;
+  cube.rotation.set(cur.rx+drag.y,cur.ry+drag.x,cur.rz);
+  camera.position.z=cur.cz;
+  const z01=Math.max(0,Math.min(1,(4.6-cur.cz)/(4.6-ZOOM_END)));
+  edgeMat.opacity=0.055+z01*0.12;
+  renderer.render(scene,camera);
+}
+tick();
+
+let panelOpen=false;
+const fbtn=document.getElementById('fbtn');
+const fpanel=document.getElementById('fpanel');
+fbtn.addEventListener('click',e=>{
+  e.stopPropagation();
+  panelOpen=!panelOpen;
+  fpanel.classList.toggle('open',panelOpen);
+});
+document.addEventListener('click',e=>{
+  if(!fpanel.contains(e.target)&&e.target!==fbtn){
+    panelOpen=false;fpanel.classList.remove('open');
+  }
+});
+
+const fgrid=document.getElementById('fgrid');
+FACES.forEach(({label,mi})=>{
+  const slot=document.createElement('div');
+  slot.className='face-slot';
+  slot.id='slot'+mi;
+  slot.innerHTML=`
+    <img class="face-thumb" id="ft${mi}" alt="${label}">
+    <div class="fplus">+</div>
+    <div class="fname">${label}</div>
+    <input type="file" accept="image/png,image/jpeg,image/webp" title="Upload ${label}">
+  `;
+  const inp=slot.querySelector('input');
+  inp.addEventListener('change',()=>{
+    const file=inp.files[0];if(!file)return;
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const cv=faceCanvases[mi];
+      const ctx=cv.getContext('2d');
+      ctx.clearRect(0,0,512,512);
+      const sc=Math.max(512/img.width,512/img.height);
+      ctx.drawImage(img,(512-img.width*sc)/2,(512-img.height*sc)/2,img.width*sc,img.height*sc);
+      faceTex[mi].needsUpdate=true;
+      document.getElementById('ft'+mi).src=url;
+      document.getElementById('slot'+mi).classList.add('has-img');
+    };
+    img.src=url;
+  });
+  fgrid.appendChild(slot);
+});
+
+})();
+</script>
+</body>
+</html>
